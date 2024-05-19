@@ -1,10 +1,16 @@
-module MyType
+module NType
 
-export NLayer, NLoss, NOptimizer, NModel
+export Layer, Loss, Optimizer, Model,
+        M, V, A, Mask
 
-abstract type NLayer end
-abstract type NLoss end
-abstract type NOptimizer end
-abstract type NModel end
+abstract type Layer end
+abstract type Loss end
+abstract type Optimizer end
+abstract type Model end
+
+M{T} = Union{Matrix{T}, CuMatrix{T}}
+V{T} = Union{Vector{T}, CuVector{T}}
+A{T, N} = Union{Array{T, N}, CuArray{T, N}}
+Mask{T, N} = Union{Array{T, N}, CuArray{T, N}, Nothing}
 
 end

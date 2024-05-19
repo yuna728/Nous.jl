@@ -1,16 +1,32 @@
-mutable struct Dense <: NLayer
-    weights::AbstractMatrix
-    bias::AbstractMatrix
+mutable struct Dense <: Layer
+    weight::M{Float32}
+    bias::M{Float32}
+    name::String
 end
 
-function Dense(in_size::Int, out_size::Int)
-    return Dense(randn(in_size, out_size), zeros(1, out_size))
+function Dense(in_dim::Int, out_dim::Int; activation=identity, name::String="dense")
+    return Dense(glorot_uniform(out_dim, in_dim), zeros(out_dim, 1), name)
 end
 
 function build(layer::Dense)
-    return [layer.weights, layer.bias]
+    trainable_layer = []
+    for field in fieldnames(layer)
+        x = getfield(layer, field) 
+        if x isa M{Float32}
+            push!(trainable_layer, (layer.name * "." * field, x))
+        end
+    end
+    return trainable_layer
 end
 
-function forward(layer::Dense, x)
-    return x * layer.weights .+ layer.bias
+function (layer::Dense)(x::A{T}; training=false) where T <: AbstractFloat
+    weight = T.(weight)
+    bias = T.(bias)
+    return layer.weight * x .+ layer.bias
+end
+
+function gpu(layer::Dense)
+    weight = CuArray(layer.weight)
+    bias = CuArray(layer.bias)
+    return Dense(weight, bias, layer.name)
 end

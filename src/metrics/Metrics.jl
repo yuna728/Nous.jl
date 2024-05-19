@@ -1,4 +1,4 @@
-module Metrics
+module NMetrics
 
 using LinearAlgebra, Statistics
 using Flux: onecold

@@ -1,4 +1,4 @@
-struct CrossEntropy <: NLoss
+struct CrossEntropy <: Loss
     epsilon::AbstractFloat
 end
 

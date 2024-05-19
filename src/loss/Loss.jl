@@ -1,7 +1,7 @@
-module Loss
+module NLoss
 
 using LinearAlgebra, Statistics
-using ..Nous.MyType
+using ..Nous.NType
 
 export CrossEntropy,
        calc_loss

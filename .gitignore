@@ -1,0 +1,11 @@
+checkpoint_*/
+summary_*/
+dataset/*
+sh_prev/
+*.sh
+*.sh.e*
+*.sh.o*
+*.tsv
+*.tfrecord
+*.pickle
+*.png

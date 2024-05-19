@@ -1,7 +1,7 @@
-mutable struct MNISTModel <: NModel
-    layers::Vector{NLayer}
-    loss::NLoss
-    optimizer::NOptimizer
+mutable struct MNISTModel <: Model
+    layers::Vector{Layer}
+    loss::Loss
+    optimizer::Optimizer
     trainable::Array
 end
 
@@ -20,9 +20,9 @@ function build!(model::MNISTModel)
     end
 end
 
-function forward!(model::MNISTModel, x)
+function forward!(model::MNISTModel, x; training=false)
     for layer in model.layers
-        x = forward(layer, x)
+        x = layer(x, training=training)
     end
     return x
 end

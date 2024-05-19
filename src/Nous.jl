@@ -4,28 +4,28 @@ using LinearAlgebra, Statistics
 using Zygote
 
 include("type.jl")
-using .MyType
-export NLayer, NLoss, NOptimizer, NModel
+using .NType
+export Layer, Loss, Optimizer, Model
 
 include("layer/Layer.jl")
-using .Layer
+using .NLayer
 export Relu, Softmax,
        Dense
 
 include("loss/Loss.jl")
-using .Loss
+using .NLoss
 export CrossEntropy
 
 include("metrics/Metrics.jl")
-using .Metrics
+using .NMetrics
 export get_accuracy
 
 include("optimizer/Optimizer.jl")
-using .Optimizer
+using .NOptimizer
 export SGD
 
 include("model/Model.jl")
-using .Model
+using .NModel
 export SequentialModel,
        MNISTModel
 

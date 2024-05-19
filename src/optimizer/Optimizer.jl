@@ -1,11 +1,15 @@
-module Optimizer
+module NOptimizer
 
 using LinearAlgebra, Statistics
-using ..Nous.MyType
+using ..Nous.NType
 
-export SGD,
-       optimizer_step!
+export  SGD,
+        Adam,
+        DynamicLossScale, get_scaled_loss,
+        optimizer_step!
 
-include("opt.jl")
+include("sgd.jl")
+include("adam.jl")
+include("loss_scale.jl")
 
 end

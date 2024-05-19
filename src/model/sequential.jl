@@ -1,32 +1,8 @@
-### Basic Model ###
-mutable struct BasicModel <: NModel
-    layers::Vector{NLayer}
-    loss::NLoss
-    optimizer::NOptimizer
-    trainable::Array
-end
-
-function build!(model::BasicModel)
-    for layer in model.layers
-        trainable_layer = build(layer)
-        for trainable in trainable_layer
-            push!(model.trainable, trainable)
-        end
-    end
-end
-
-function forward!(model::BasicModel, x)
-    for layer in model.layers
-        x = forward(layer, x)
-    end
-    return x
-end
-
 ### Sequential Model ###
-mutable struct SequentialModel <: NModel
-    layers::Vector{NLayer}
-    loss::NLoss
-    optimizer::NOptimizer
+mutable struct SequentialModel <: Model
+    layers::Vector{Layer}
+    loss::Loss
+    optimizer::Optimizer
     trainable::Array
 end
 
@@ -38,15 +14,15 @@ function SequentialModel()
     return SequentialModel(layers, loss, optimizer, trainable)
 end
 
-function add!(model::SequentialModel, layer::NLayer)
+function add!(model::SequentialModel, layer::Layer)
     push!(model.layers, layer)
 end
 
-function set_loss!(model::SequentialModel, loss::NLoss)
+function set_loss!(model::SequentialModel, loss::Loss)
     model.loss = loss
 end
 
-function set_optimizer!(model::SequentialModel, opt::NOptimizer)
+function set_optimizer!(model::SequentialModel, opt::Optimizer)
     model.optimizer = opt
 end
 
@@ -59,9 +35,18 @@ function build!(model::SequentialModel)
     end
 end
 
-function forward!(model::SequentialModel, x)
+function (model::SequentialModel)(x; training=false)
     for layer in model.layers
-        x = forward(layer, x)
+        x = layer(x, training=training)
     end
     return x
 end
+
+function gpu(model::SequentialModel; amp::Bool=false)
+    new_layer = []
+    for layer in model.layers
+        push!(new_layer, layer |> gpu(amp=amp))
+    end
+    return SequentialModel(new_layer, model.loss, model.ooptimizer, model.trainable)
+end
+

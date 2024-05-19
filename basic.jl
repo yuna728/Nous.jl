@@ -7,8 +7,6 @@ function main()
     x_train, y_train = MLDatasets.MNIST(split=:train)[:]
     x_train = Flux.flatten(x_train) # 784×60000
     y_train = onehotbatch(y_train, 0:9) # 10×60000
-    x_train = transpose(x_train)
-    y_train = transpose(y_train)
 
     model = MNISTModel()
     batch_size = 256

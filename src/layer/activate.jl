@@ -1,27 +1,49 @@
 ### Relu ###
-struct Relu <: NLayer
+struct ReLU <: Layer
+    name::String
 end
 
-function build(act_func::Relu)
+function ReLU(; name::String="relu")
+    return ReLU(name)
+
+function build(act_func::ReLU)
     return []
 end
 
-function forward(act_func::Relu, x)
-    return ifelse.(x.<0, zero(x), x)
+function (act_func::ReLU)(x::A{T}; training=false) where T <: AbstractFloat
+    return ifelse.(x.<0, zero(T, x), x)
+end
+
+function gpu(layer::ReLU)
+    return layer
 end
 
 ### Softmax ###
-struct Softmax <: NLayer
+struct Softmax <: Layer
+    name::String
 end
+
+function Softmax(; name::String="softmax")
+    return Softmax(name)
 
 function build(act_func::Softmax)
     return []
 end
 
-function forward(act_func::Softmax, x)
-    c = maximum(x, dims=2)
+function (act_func::Softmax)(x::A{T}; dim::Int=1, training::Bool=false) where T <: AbstractFloat
+    return softmax(x, dim=dim)
+end
+
+function gpu(layer::Softmax)
+    return layer
+end
+
+function softmax(x::A{T}; dim::Int=1) where T <: AbstractFloat
+    if T == Float16 || T == BFloat16
+        x = Float32.(x)
+    c = maximum(x, dims=dim)
     exp_x = exp.(x .- c)
-    sum_exp_x = sum(exp_x, dims=2)
+    sum_exp_x = sum(exp_x, dims=dim)
     y = exp_x ./ sum_exp_x
-    return y
+    return T.(y)
 end

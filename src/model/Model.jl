@@ -1,17 +1,18 @@
-module Model
+module NModel
 
 using LinearAlgebra, Statistics
-using ..Nous.MyType
-using ..Nous.Layer
-using ..Nous.Layer: build, forward
-using ..Nous.Loss
-using ..Nous.Optimizer
+using ..Nous.NType
+using ..Nous.NLayer
+using ..Nous.NLoss
+using ..Nous.NOptimizer
 
 export SequentialModel,
        MNISTModel,
-       forward!, build!, add!, set_loss!, set_optimizer!
+       SSNet,
+       build!, add!, set_loss!, set_optimizer!
 
 include("sequential.jl")
 include("my_mnist.jl")
+include("ssnet.jl")
 
 end
