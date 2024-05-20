@@ -15,7 +15,7 @@ end
 
 function build(layer::LayerNormalization)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa V{Float32}
             push!(trainable_layer, (layer.name * "." * field, x))
@@ -27,10 +27,11 @@ end
 function (layer::LayerNormalization)(x::A{T}; training=false) where T <: AbstractFloat
     if T == Float16 || T == BFloat16
         x = Float32.(x)
+    end
     mean = mean(x, dims=1)
     var = var(x, dims=1)
     inv = 1.0f0 ./ sqrt.(var .+ layer.eps)
-    inv = inv *. layer.gamma
+    inv = inv .* layer.gamma
     res = -mean .* inv
     res = res .+ layer.beta
     x_norm = x .* inv .+ res
@@ -39,7 +40,7 @@ end
 
 function gpu(layer::LayerNormalization)
     member_list = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         push!(member_list, CuArray(x))
     end
@@ -65,12 +66,13 @@ function BatchNormalization(in_dim::Int; momentum=0.99f0, eps=1e-3f0, name::Stri
 end
 
 function build(layer::BatchNormalization)
-    return [(layer.name * ".beta", layer.beta), (layer.name ".gamma", layer.gamma)]
+    return [(layer.name * ".beta", layer.beta), (layer.name * ".gamma", layer.gamma)]
 end
 
 function (layer::BatchNormalization)(x::A{T}; training=false) where T <: AbstractFloat
     if T == Float16 || T == BFloat16
         x = Float32.(x)
+    end
     if training
         reduction_axes = collect(2:ndims(x))
         mean = mean(x, dims=reduction_axes)
@@ -82,7 +84,7 @@ function (layer::BatchNormalization)(x::A{T}; training=false) where T <: Abstrac
         variance = layer.variance
     end
     inv = 1.0f0 ./ sqrt.(var .+ layer.eps)
-    inv = inv *. layer.gamma
+    inv = inv .* layer.gamma
     res = -mean .* inv
     res = res .+ layer.beta
     x_norm = x .* inv .+ res
@@ -91,7 +93,7 @@ end
 
 function gpu(layer::BatchNormalization)
     member_list = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         push!(member_list, CuArray(x))
     end

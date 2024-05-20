@@ -31,7 +31,7 @@ end
 
 function build(layer::CompressAttention)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer && !isempty(build(x))
             push!(trainable_layer, (layer.name, build(x)))
@@ -60,15 +60,12 @@ function (layer::CompressAttention)(x::A{T, 4}; training=false, mask=nothing) wh
     return x, attention_weights
 end
 
-function gpu(layer::CompressAttention; amp::Bool=false)
-    q_w = layer.q_w |> gpu(amp=amp)
-    k_w = layer.k_w |> gpu(amp=amp)
-    v_w = layer.v_w |> gpu(amp=amp)
-    out_w = layer.out_w |> gpu(amp=amp)
-    if amp
-        E = CuArray{Float16}(layer.E)
-    else
-        E = CuArray(layer.E)
+function gpu(layer::CompressAttention)
+    q_w = layer.q_w |> gpu
+    k_w = layer.k_w |> gpu
+    v_w = layer.v_w |> gpu
+    out_w = layer.out_w |> gpu
+    E = CuArray(layer.E)
     return CompressAttention(layer.num_areas, layer.num_heads, layer.depth, layer.max_len,
                              q_w, k_w, v_w, out_w, layer.dropout, E, layer.name)
 end
@@ -81,7 +78,7 @@ function split_areas(x::A{T, 4}, num_areas::Int) where T <: AbstractFloat
     return reshape(x, size(x,1), div(size(x,2),num_areas), num_areas, size(x,3)) # (d_model, block_len, num_areas, batch_size)
 end
 
-function relative_positional_encoding(q::A{T1, 5}, max_len::Int, E::M{T2}, dropout::Dropout) where T1 <: AbstractFloat, T2 <: AbstractFloat
+function relative_positional_encoding(q::A{T1, 5}, max_len::Int, E::M{T2}, dropout::Dropout) where {T1 <: AbstractFloat, T2 <: AbstractFloat}
     len_q = size(q, 3)
     E = T1.(get_left_embed(E, max_len, len_q)) # (depth, 2*l_q-1)
     E = dropout(E)
@@ -93,7 +90,7 @@ end
 
 function get_left_embed(E::M{Float32}, max_len::Int, len_q::Int)
     start_point = max(0, max_len - (2*len_q-1))
-    e = E[:,start_point+1:]
+    e = E[:,start_point+1:end]
     return e
 end
 
@@ -102,13 +99,13 @@ function relative_shift(x::A{T, 5}) where T <: AbstractFloat # (2*l_q-1, l_q, nu
     x = cat(to_pad, x, dims=1) # (2*l_q, l_q, num_heads, num_areas, batch_size) 
     t2, t1, num_heads, num_areas, batch_size = size(x)
     x = reshape(x, t1, t2, num_heads, num_areas, batch_size)  # (l_q, 2*l_q, num_heads, num_areas, batch_size) 
-    x = x[:,2:,:,:,:] # (l_q, 2*l_q-1, num_heads, num_areas, batch_size) 
+    x = x[:,2:end,:,:,:] # (l_q, 2*l_q-1, num_heads, num_areas, batch_size) 
     x = reshape(x, t2-1, t1, num_heads, num_areas, batch_size)  # (2*l_q-1, l_q, num_heads, num_areas, batch_size) 
     x = x[:div(t2//2),:,:,:,:] # (l_q, l_q, num_heads, num_areas, batch_size) 
     return x
 end
 
-function dot_product_attention_rpe(q::A{T, 5}, k::A{T, 5}, v::A{T, 5}, Srel::A{T, 5}; mask::Mask{T, 5}=nothing)
+function dot_product_attention_rpe(q::A{T, 5}, k::A{T, 5}, v::A{T, 5}, Srel::A{T, 5}; mask::Mask{T, 5}=nothing) where T <: AbstractFloat
     kt = permutedims(k, (3, 1, 2, 4, 5)) # (l_k, depth, num_heads, num_areas, batch_size)
     qt = permutedims(q, (1, 3, 2, 4, 5)) # (depth, l_q, num_heads, num_areas, batch_size)
     logits = batched_mul(kt, qt) # (l_k, l_q, num_heads, num_areas, batch_size)
@@ -127,7 +124,7 @@ function dot_product_attention_rpe(q::A{T, 5}, k::A{T, 5}, v::A{T, 5}, Srel::A{T
     return x, attention_weights
 end
 
-function apply_attn_mask(logits::A{T, 5}, mask::Nothing) where T <: AbstractFloat = logits
+apply_attn_mask(logits::A{T, 5}, mask::Nothing) where T <: AbstractFloat = logits
 
 function apply_attn_mask(logits::A{T, 5}, mask::A{T, 5}) where T <: AbstractFloat
     neginf = typemin(eltype(logits))
@@ -159,7 +156,7 @@ end
 
 function build(layer::Compress)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer && !isempty(build(x))
             push!(trainable_layer, (layer.name, build(x)))
@@ -181,7 +178,7 @@ end
 
 function gpu(layer::Compress)
     member_list = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer
             push!(member_list, x |> gpu)

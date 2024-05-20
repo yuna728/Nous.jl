@@ -14,9 +14,11 @@ end
 
 function optimizer_step!(opt::Adam, trainable_list, grad_list)
     if isnothing(opt.momentum)
-        for trainable in trainable_list:
+        for trainable in trainable_list
             opt.momentum[trainable[1]] = zeros(Float32, size(trainable[2])) # 全ての要素が0
             opt.velocity[trainable[1]] = zeros(Float32, size(trainable[2])) 
+        end
+    end
     for trainable in trainable_list
         step = Float32(opt.iter + 1)
         beta_1_power = opt.beta_1 ^ step

@@ -35,7 +35,7 @@ end
 
 function build(layer::EmbedBlock)
   trainable_layer = []
-  for field in fieldnames(layer)
+  for field in fieldnames(typeof(layer))
       x = getfield(layer, field) 
       if x isa Layer && !isempty(build(x))
           push!(trainable_layer, (layer.name, build(x)))

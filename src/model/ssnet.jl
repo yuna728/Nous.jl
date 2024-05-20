@@ -28,9 +28,9 @@ function SSNet(in_dim::Int, input_len::Int, conv_dim::Int, conv_kernel::Vector{I
   # (in_dim, input_len, batch_size)
 
     ### Conv blocks ###
-    conv1 = Conv1D(in_dim+1, conv_dim, 1, pad='same')
-    conv2 = Conv1D(conv_dim, conv_dim, 1, pad='same')
-    conv3 = Conv1D(conv_dim, conv_dim, 1, pad='same')
+    conv1 = Conv1D(in_dim+1, conv_dim, 1, pad="same")
+    conv2 = Conv1D(conv_dim, conv_dim, 1, pad="same")
+    conv3 = Conv1D(conv_dim, conv_dim, 1, pad="same")
     conv_blocks = [ResidualBlock(conv_dim, conv_dim, k) for k in conv_kernel]
     # (conv_dim, input_len, batch_size)
 
@@ -74,16 +74,18 @@ end
 
 function build!(model::SSNet)
   trainable_list = []
-  for field in fieldnames(model)
+  for field in fieldnames(typeof(model))
       x = getfield(model, field) 
       if x isa Layer
         if !isempty(build(x))
           push!(trainable_list, (field, build(x)))
+        end
       elseif x isa Vector && eltype(x) <: Layer
         if !isempty(build(x[1]))
           for i in 1::lengtj(x)
             push!(trainable_list, (field * string(i), build(x[i])))
           end
+        end
       end
   end
   resolved_trainable_list = resolve_nested_weights("ssnet", trainable_list)
@@ -187,12 +189,13 @@ end
 
 function gpu(model::SSNet)
   new_layer = []
-  for field in fieldnames(layer)
+  for field in fieldnames(typeof(layer))
       x = getfield(layer, field) 
       if x isa Layer
         push!(new_layer, gpu(x))
       elseif x isa Vector && eltype(x) <: Layer
         push!(new_layer, gpu.(x))
+      end
   end
   return SSNet(new_layer..., model.loss, model.ooptimizer, model.trainable)
 end

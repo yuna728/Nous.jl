@@ -42,10 +42,10 @@ function (model::SequentialModel)(x; training=false)
     return x
 end
 
-function gpu(model::SequentialModel; amp::Bool=false)
+function gpu(model::SequentialModel)
     new_layer = []
     for layer in model.layers
-        push!(new_layer, layer |> gpu(amp=amp))
+        push!(new_layer, layer |> gpu)
     end
     return SequentialModel(new_layer, model.loss, model.ooptimizer, model.trainable)
 end

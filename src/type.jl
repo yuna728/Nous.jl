@@ -1,5 +1,7 @@
 module NType
 
+using CUDA
+
 export Layer, Loss, Optimizer, Model,
         M, V, A, Mask
 

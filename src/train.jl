@@ -31,6 +31,7 @@ function train_loop!(model::SSNet, train_batch; amp::Bool=false)
     loss_ie = nothing
     if amp
         x = Float16.(x)
+    end
     scaled_grads = gradient(Params(model.trainable)) do
         y_pred_da, y_pred_ie, _, _  = model(x)
         y_pred_da = Float32.(y_pred_da)
@@ -43,4 +44,6 @@ function train_loop!(model::SSNet, train_batch; amp::Bool=false)
     finite = optimizer_step!(model.optimizer, model.trainable, grad)
     #acc = get_accuracy(y, y_pred)
     return finite, loss, acc
+end
+
 end

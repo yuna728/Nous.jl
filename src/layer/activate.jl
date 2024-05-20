@@ -5,6 +5,7 @@ end
 
 function ReLU(; name::String="relu")
     return ReLU(name)
+end
 
 function build(act_func::ReLU)
     return []
@@ -25,6 +26,7 @@ end
 
 function Softmax(; name::String="softmax")
     return Softmax(name)
+end
 
 function build(act_func::Softmax)
     return []
@@ -41,6 +43,7 @@ end
 function softmax(x::A{T}; dim::Int=1) where T <: AbstractFloat
     if T == Float16 || T == BFloat16
         x = Float32.(x)
+    end
     c = maximum(x, dims=dim)
     exp_x = exp.(x .- c)
     sum_exp_x = sum(exp_x, dims=dim)

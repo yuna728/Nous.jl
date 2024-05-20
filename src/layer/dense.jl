@@ -5,12 +5,12 @@ mutable struct Dense <: Layer
 end
 
 function Dense(in_dim::Int, out_dim::Int; activation=identity, name::String="dense")
-    return Dense(glorot_uniform(out_dim, in_dim), zeros(out_dim, 1), name)
+    return Dense(glorot_uniform(out_dim, in_dim), zeros(Float32, out_dim, 1), name)
 end
 
 function build(layer::Dense)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa M{Float32}
             push!(trainable_layer, (layer.name * "." * field, x))
@@ -20,9 +20,9 @@ function build(layer::Dense)
 end
 
 function (layer::Dense)(x::A{T}; training=false) where T <: AbstractFloat
-    weight = T.(weight)
-    bias = T.(bias)
-    return layer.weight * x .+ layer.bias
+    weight = T.(layer.weight)
+    bias = T.(layer.bias)
+    return weight * x .+ bias
 end
 
 function gpu(layer::Dense)

@@ -8,20 +8,20 @@ mutable struct Conv1D{F} <: Layer
     pad::Tuple
     dilation::Int
     name::String
-  end
 end
 
 function Conv1D(in_dim::Int, out_dim::Int, kernel_size::Int; bias::Bool = true, activation = identity,
-    stride::Int = 1, pad::String = 'same', dilation::Int = 1, name::String="conv1d")
-    if pad == 'same'
+    stride::Int = 1, pad::String = "same", dilation::Int = 1, name::String="conv1d")
+    if pad == "same"
         pad_amt = kernel_size - 1
         pad = Tuple([cld(pad_amt, 2), fld(pad_amt,2)])
-    return Conv1D(glorot_uniform(kernel_size, out_dim, in_dim), zeros(out_dim, 1), activation, stride, pad, dilation, name)
+    end
+    return Conv1D(glorot_uniform(kernel_size, out_dim, in_dim), zeros(Float32, out_dim, 1), activation, stride, pad, dilation, name)
 end
 
 function build(layer::Conv1D)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa M{Float32}
             push!(trainable_layer, (layer.name * "." * field, x))
@@ -52,8 +52,8 @@ mutable struct ConvRBlock{F} <: Layer
 end
 
 function ConvRBlock(in_dim::Int, out_dim::Int, kernel_size::Int; name::String="conv_r_block")
-    conv1 = Conv1D(in_dim, out_dim, kernel_size; pad='same', name="conv1")
-    conv2 = Conv1D(in_dim, out_dim, kernel_size; pad='same', name="conv2")
+    conv1 = Conv1D(in_dim, out_dim, kernel_size; pad="same", name="conv1")
+    conv2 = Conv1D(in_dim, out_dim, kernel_size; pad="same", name="conv2")
     bn1 = BatchNormalization(name="batch_norm1")
     bn2 = BatchNormalization(name="batch_norm2")
     relu1 = ReLU(name="relu1")
@@ -63,7 +63,7 @@ end
 
 function build(layer::ConvRBlock)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer && !isempty(build(x))
             push!(trainable_layer, (layer.name, build(x)))
@@ -85,7 +85,7 @@ end
 
 function gpu(layer::ConvRBlock)
     member_list = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer
             push!(member_list, x |> gpu)

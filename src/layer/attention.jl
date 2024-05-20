@@ -22,7 +22,7 @@ end
 
 function build(layer::MultiHeadAttention)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer && !isempty(build(x))
             push!(trainable_layer, (layer.name, build(x)))
@@ -67,7 +67,7 @@ function dot_product_attention(q::A{T, 4}, k::A{T, 4}, v::A{T, 4}, mask::A{T, 4}
     return x, attention_weights
 end
 
-function apply_attn_mask(logits::A{T, 4}, mask::Nothing) where T <: AbstractFloat = logits
+apply_attn_mask(logits::A{T, 4}, mask::Nothing) where T <: AbstractFloat = logits
 
 function apply_attn_mask(logits::A{T, 4}, mask::A{T, 4}) where T <: AbstractFloat
     neginf = typemin(eltype(logits))
@@ -76,13 +76,15 @@ end
 
 function gpu(layer::MultiHeadAttention)
     member_list = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer
-            push!(member_list, x |> gpu)
+            push!(member_list, gpu(x))
+        else
+            push!(member_list, x)
         end
     end
-    return MultiHeadAttention(layer.num_heads, layer.depth, member_list..., layer.name)
+    return MultiHeadAttention(member_list...)
 end
 
 mutable struct FFN <: Layer
@@ -99,7 +101,7 @@ end
 
 function build(layer::FFN)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer && !isempty(build(x))
             push!(trainable_layer, (layer.name, build(x)))
@@ -116,7 +118,7 @@ end
 
 function gpu(layer::FFN)
     member_list = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer
             push!(member_list, x |> gpu)
@@ -149,7 +151,7 @@ end
 
 function build(layer::Encoder)
     trainable_layer = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer
             push!(trainable_layer, (layer.name, build(x)))
@@ -171,7 +173,7 @@ end
 
 function gpu(layer::Encoder)
     member_list = []
-    for field in fieldnames(layer)
+    for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer
             push!(member_list, x |> gpu)

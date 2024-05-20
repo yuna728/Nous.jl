@@ -27,9 +27,11 @@ function optimizer_step!(opt::DynamicLossScale, trainable_list, grad)
             opt.scale *= 2.0f0
         else
             opt.step_counter += 1
+        end
     else
         opt.step_counter = 0
         opt.dynamic_scale /= 2.0f0
+    end
     return finite
 end
 

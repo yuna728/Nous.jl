@@ -20,7 +20,7 @@ function build!(model::MNISTModel)
     end
 end
 
-function forward!(model::MNISTModel, x; training=false)
+function (model::MNISTModel)(x; training=false)
     for layer in model.layers
         x = layer(x, training=training)
     end
