@@ -1,7 +1,7 @@
 using NNlib: conv
 
 mutable struct Conv1D{F} <: Layer
-    weight::M{Float32}
+    weight::A{Float32, 3}
     bias::M{Float32}
     activation::F
     stride::Int
@@ -16,23 +16,28 @@ function Conv1D(in_dim::Int, out_dim::Int, kernel_size::Int; bias::Bool = true, 
         pad_amt = kernel_size - 1
         pad = Tuple([cld(pad_amt, 2), fld(pad_amt,2)])
     end
-    return Conv1D(glorot_uniform(kernel_size, out_dim, in_dim), zeros(Float32, out_dim, 1), activation, stride, pad, dilation, name)
+    return Conv1D(glorot_uniform(kernel_size, in_dim, out_dim), zeros(Float32, out_dim, 1), activation, stride, pad, dilation, name)
 end
 
 function build(layer::Conv1D)
     trainable_layer = []
     for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
-        if x isa M{Float32}
-            push!(trainable_layer, (layer.name * "." * field, x))
+        if x isa A{Float32}
+            push!(trainable_layer, (layer.name * "." * string(field), x))
         end
     end
     return trainable_layer
 end
 
 function (layer::Conv1D)(x::A{T, 3}; training=false) where T <: AbstractFloat
-    cdims = DenseConvDims(x, layer.weight; stride = layer.stride, padding = layer.pad, dilation = layer.dilation)
-    return layer.activation.(conv(x, layer.weight, cdims) .+ layer.bias)
+    x = permutedims(x, (2, 1, 3)) # (input_len, in_dims, batch_size)
+    weight = T.(layer.weight)
+    bias = T.(layer.bias)
+    cdims = DenseConvDims(x, weight; stride = layer.stride, padding = layer.pad, dilation = layer.dilation)
+    conv_out = conv(x, weight, cdims) # (input_len, out_dims, batch_size)
+    add_bias = permutedims(conv_out, (2, 1, 3)) .+ bias # (out_dims, input_len, batch_size)
+    return layer.activation.(add_bias)
 end
 
 function gpu(layer::Conv1D)
@@ -53,9 +58,9 @@ end
 
 function ConvRBlock(in_dim::Int, out_dim::Int, kernel_size::Int; name::String="conv_r_block")
     conv1 = Conv1D(in_dim, out_dim, kernel_size; pad="same", name="conv1")
-    conv2 = Conv1D(in_dim, out_dim, kernel_size; pad="same", name="conv2")
-    bn1 = BatchNormalization(name="batch_norm1")
-    bn2 = BatchNormalization(name="batch_norm2")
+    conv2 = Conv1D(out_dim, out_dim, kernel_size; pad="same", name="conv2")
+    bn1 = BatchNormalization(out_dim, name="batch_norm1")
+    bn2 = BatchNormalization(out_dim, name="batch_norm2")
     relu1 = ReLU(name="relu1")
     relu2 = ReLU(name="relu2")
     return ConvRBlock(conv1, conv2, bn1, bn2, relu1, relu2, name)
@@ -65,8 +70,10 @@ function build(layer::ConvRBlock)
     trainable_layer = []
     for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
-        if x isa Layer && !isempty(build(x))
-            push!(trainable_layer, (layer.name, build(x)))
+        if x isa Layer
+            for (name, weights) in build(x)
+                push!(trainable_layer, (layer.name * "." * name, weights))
+            end
         end
     end
     return trainable_layer

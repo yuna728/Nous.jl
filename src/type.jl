@@ -13,6 +13,6 @@ abstract type Model end
 M{T} = Union{Matrix{T}, CuMatrix{T}}
 V{T} = Union{Vector{T}, CuVector{T}}
 A{T, N} = Union{Array{T, N}, CuArray{T, N}}
-Mask{T, N} = Union{Array{T, N}, CuArray{T, N}, Nothing}
+Mask{N} = Union{Array{Bool, N}, CuArray{Bool, N}, Nothing}
 
 end

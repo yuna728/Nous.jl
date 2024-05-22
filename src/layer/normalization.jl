@@ -7,10 +7,10 @@ mutable struct LayerNormalization <: Layer
     name::String
 end
 
-function LayerNormalization(in_dim::Int; eps=1e-3f0, name::String="layer_norm")
+function LayerNormalization(in_dim::Int; epsilon=1f-3, name::String="layer_norm")
     beta = zeros(Float32, in_dim)
     gamma = ones(Float32, in_dim)
-    return LayerNormalization(beta, gamma, Float32(eps), name)
+    return LayerNormalization(beta, gamma, Float32(epsilon), name)
 end
 
 function build(layer::LayerNormalization)
@@ -18,24 +18,24 @@ function build(layer::LayerNormalization)
     for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa V{Float32}
-            push!(trainable_layer, (layer.name * "." * field, x))
+            push!(trainable_layer, (layer.name * "." * string(field), x))
         end
     end
     return trainable_layer
 end
 
 function (layer::LayerNormalization)(x::A{T}; training=false) where T <: AbstractFloat
-    if T == Float16 || T == BFloat16
+    if T == Float16
         x = Float32.(x)
     end
-    mean = mean(x, dims=1)
-    var = var(x, dims=1)
-    inv = 1.0f0 ./ sqrt.(var .+ layer.eps)
+    mean_x = mean(x, dims=1)
+    var_x = var(x, dims=1)
+    inv = 1.0f0 ./ sqrt.(var_x .+ fill(layer.eps, size(var_x)))
     inv = inv .* layer.gamma
-    res = -mean .* inv
+    res = -mean_x .* inv
     res = res .+ layer.beta
     x_norm = x .* inv .+ res
-    return T.(x_norms)
+    return T.(x_norm)
 end
 
 function gpu(layer::LayerNormalization)
@@ -57,7 +57,7 @@ mutable struct BatchNormalization <: Layer
     name::String
 end
 
-function BatchNormalization(in_dim::Int; momentum=0.99f0, eps=1e-3f0, name::String="batch_norm")
+function BatchNormalization(in_dim::Int; momentum=0.99f0, eps=1f-3, name::String="batch_norm")
     beta = zeros(Float32, in_dim)
     gamma = ones(Float32, in_dim)
     moving_mean = zeros(Float32, in_dim)
@@ -70,22 +70,22 @@ function build(layer::BatchNormalization)
 end
 
 function (layer::BatchNormalization)(x::A{T}; training=false) where T <: AbstractFloat
-    if T == Float16 || T == BFloat16
+    if T == Float16
         x = Float32.(x)
     end
     if training
         reduction_axes = collect(2:ndims(x))
-        mean = mean(x, dims=reduction_axes)
-        var = var(x, dims=reduction_axes)
+        mean_x = mean(x, dims=reduction_axes) # (size(x, 1), 1, 1,...)
+        var_x = var(x, dims=reduction_axes)  # (size(x, 1), 1, 1,...)
         layer.moving_mean = layer.moving_mean .* layer.momentum .+ mean .* (1.0f0 - layer.momentum)
         layer.moving_variance = layer.moving_variance .* layer.momentum .+ variance .* (1.0f0 - layer.momentum)
     else
-        mean = layer.movinf_mean
-        variance = layer.variance
+        mean_x = layer.moving_mean
+        var_x = layer.moving_variance
     end
-    inv = 1.0f0 ./ sqrt.(var .+ layer.eps)
+    inv = 1.0f0 ./ sqrt.(var_x .+ fill(layer.eps, size(var_x)))
     inv = inv .* layer.gamma
-    res = -mean .* inv
+    res = -mean_x .* inv
     res = res .+ layer.beta
     x_norm = x .* inv .+ res
     return T.(x_norm)

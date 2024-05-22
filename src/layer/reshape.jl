@@ -1,9 +1,9 @@
 mutable struct Reshape <: Layer
-  shape::Vector{Int}
+  shape::Tuple{Vararg{Int}}
   name::String
 end
 
-function Reshape(shape::Vector{Int}; name::String="reshape")
+function Reshape(shape::Int...; name::String="reshape")
   return Reshape(shape, name)
 end
 

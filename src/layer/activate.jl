@@ -12,7 +12,7 @@ function build(act_func::ReLU)
 end
 
 function (act_func::ReLU)(x::A{T}; training=false) where T <: AbstractFloat
-    return ifelse.(x.<0, zero(T, x), x)
+    return ifelse.(x.<0, zeros(T, size(x)), x)
 end
 
 function gpu(layer::ReLU)
@@ -41,7 +41,7 @@ function gpu(layer::Softmax)
 end
 
 function softmax(x::A{T}; dim::Int=1) where T <: AbstractFloat
-    if T == Float16 || T == BFloat16
+    if T == Float16
         x = Float32.(x)
     end
     c = maximum(x, dims=dim)

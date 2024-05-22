@@ -9,7 +9,7 @@ using ..Nous.NOptimizer
 export SequentialModel,
        MNISTModel,
        SSNet,
-       build!, add!, set_loss!, set_optimizer!
+       build!, add!, set_loss!, set_loss_da!, set_loss_ie!, set_optimizer!
 
 include("sequential.jl")
 include("my_mnist.jl")

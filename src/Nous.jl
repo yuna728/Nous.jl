@@ -7,7 +7,7 @@ using Random
 
 include("type.jl")
 using .NType
-export Layer, Loss, Optimizer, Model
+export Layer, Loss, Optimizer, Model, M, V, A
 
 include("initializer.jl")
 using .NInitializer
@@ -18,7 +18,7 @@ using .NLayer
 export Reshape,
        ReLU, Softmax, softmax,
        Dense, 
-       Conv1D, 
+       Conv1D, ConvRBlock,
        Dropout,
        EmbedBlock,
        LayerNormalization, BatchNormalization,
@@ -28,7 +28,7 @@ export Reshape,
 
 include("loss/Loss.jl")
 using .NLoss
-export CrossEntropy
+export CrossEntropy, calc_loss
 
 include("metrics/Metrics.jl")
 using .NMetrics
@@ -37,13 +37,15 @@ export get_accuracy
 include("optimizer/Optimizer.jl")
 using .NOptimizer
 export SGD, Adam,
-       DynamicLossScale, get_scaled_loss
+       DynamicLossScale, get_scaled_loss,
+       optimizer_step!
 
 include("model/Model.jl")
 using .NModel
 export SequentialModel,
        MNISTModel,
-       SSNet
+       SSNet,
+       set_loss_ie!, set_loss_da!, set_optimizer!
 
 include("train.jl")
 using .Train

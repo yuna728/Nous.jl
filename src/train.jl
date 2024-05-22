@@ -27,23 +27,29 @@ function train_loop!(model::SSNet, train_batch; amp::Bool=false)
     (x, y_label_da, y_label_ie) = train_batch
     y_pred_da = nothing
     y_pred_ie = nothing
-    loss_da = nothing
-    loss_ie = nothing
+    loss_da_val = nothing
+    loss_ie_val = nothing
     if amp
+        @assert typeof(model.optimizer) == DynamicLossScale
         x = Float16.(x)
     end
-    scaled_grads = gradient(Params(model.trainable)) do
+    grad = gradient(Params([weight for (name, weight) in model.trainable])) do
         y_pred_da, y_pred_ie, _, _  = model(x)
         y_pred_da = Float32.(y_pred_da)
         y_pred_ie = Float32.(y_pred_ie)
-        loss_da = calc_loss(model.loss_da, y_label_da, y_pred_da)
-        loss_ie = calc_loss(model.loss_ie, y_label_ie, y_pred_ie)
-        loss = loss_da + loss_ie
-        scaled_loss = get_scaled_loss(model.optimizer, loss)
+        loss_da_val = calc_loss(model.loss_da, y_label_da, y_pred_da)
+        loss_ie_val = calc_loss(model.loss_ie, y_label_ie, y_pred_ie)
+        loss_val = loss_da_val + loss_ie_val
+        if amp
+            scaled_loss = get_scaled_loss(model.optimizer, loss_val)
+            return scaled_loss
+        else
+            return loss_val
+        end
     end
     finite = optimizer_step!(model.optimizer, model.trainable, grad)
     #acc = get_accuracy(y, y_pred)
-    return finite, loss, acc
+    return finite, loss_val
 end
 
 end

@@ -6,7 +6,7 @@ mutable struct Dropout <: Layer
 end
 
 function Dropout(dropout_rate::AbstractFloat; name::String="dropout")
-    return Dropout(Float32(dropout_rate, name))
+    return Dropout(Float32(dropout_rate), name)
 end
 
 function build(layer::Dropout)

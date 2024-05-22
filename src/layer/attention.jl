@@ -24,15 +24,17 @@ function build(layer::MultiHeadAttention)
     trainable_layer = []
     for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
-        if x isa Layer && !isempty(build(x))
-            push!(trainable_layer, (layer.name, build(x)))
+        if x isa Layer
+            for (name, weights) in build(x)
+                push!(trainable_layer, (layer.name * "." * name, weights))
+            end
         end
     end
     return trainable_layer
 end
 
-function (layer::MultiHeadAttention)(q::A{T, 3}, k::A{T, 3}, v::A{T, 3}; training::Bool=false, mask::Mask{T, 4}=nothing) where T <: AbstractFloat
-    q = layer.q_w(q, tarining=training)  # [q] = [qk_dim, q_len, batch_size]
+function (layer::MultiHeadAttention)(q::A{T, 3}, k::A{T, 3}, v::A{T, 3}; training::Bool=false, mask::Mask{4}=nothing) where T <: AbstractFloat
+    q = layer.q_w(q, training=training)  # [q] = [qk_dim, q_len, batch_size]
     k = layer.k_w(k, training=training)  # [k] = [qk_dim, kv_len, batch_size] 
     v = layer.v_w(v, training=training)  # [v] = [v_dim, kv_len, batch_size]
 
@@ -40,7 +42,7 @@ function (layer::MultiHeadAttention)(q::A{T, 3}, k::A{T, 3}, v::A{T, 3}; trainin
     k = split_heads(k, layer.num_heads, layer.depth) 
     v = split_heads(v, layer.num_heads, layer.depth) 
 
-    x, attentioin_weights = dot_product_attention(q, k, v, mask)
+    x, attention_weights = dot_product_attention(q, k, v, mask)
     x = layer.out_w(x, training=training) # (out_dim, q_len, batch_size)
     return x, attention_weights
 end
@@ -49,11 +51,11 @@ function split_heads(x::A{T, 3}, num_heads::Int, depth::Int) where T <: Abstract
     return reshape(x, depth, num_heads, size(x)[2:end]...) # (depth, num_heads, seq_len, batch_size)
 end
 
-function dot_product_attention(q::A{T, 4}, k::A{T, 4}, v::A{T, 4}, mask::A{T, 4}) where T <: AbstractFloat
+function dot_product_attention(q::A{T, 4}, k::A{T, 4}, v::A{T, 4}, mask::Mask{4}) where T <: AbstractFloat
     # The following permutedims and batched_mul are equivalent to
     # @tullio logits[j, i, h, b] := q[d, h, i, b] * k[d, h, j, b] / √T(qk_dim)
     kt = permutedims(k, (3, 1, 2, 4)) # (k_len, depth, num_heads, batch_size)
-    qt = permutedims(q, (1, 3, 2, 4)) ./ sqrt((size(q, 1))) # (depth, q_len, num_heads, batch_size)
+    qt = permutedims(q, (1, 3, 2, 4)) ./ sqrt(T(size(q, 1))) # (depth, q_len, num_heads, batch_size)
     logits = batched_mul(kt, qt) # (k_len, q_len, num_heads, batch_size)
 
     logits = apply_attn_mask(logits, mask)
@@ -69,7 +71,7 @@ end
 
 apply_attn_mask(logits::A{T, 4}, mask::Nothing) where T <: AbstractFloat = logits
 
-function apply_attn_mask(logits::A{T, 4}, mask::A{T, 4}) where T <: AbstractFloat
+function apply_attn_mask(logits::A{T, 4}, mask::A{Bool, 4}) where T <: AbstractFloat
     neginf = typemin(eltype(logits))
     return ifelse.(mask, logits, neginf)
 end
@@ -95,7 +97,7 @@ end
 
 function FFN(in_dim::Int, d_model::Int, dff::Int; name::String="ffn")
     dense1 = Dense(in_dim, dff, activation=relu, name="dense1")
-    dense2 = Dense(in_dim, d_model, name="dense2")
+    dense2 = Dense(dff, d_model, name="dense2")
     return FFN(dense1, dense2, name)
 end
 
@@ -103,8 +105,10 @@ function build(layer::FFN)
     trainable_layer = []
     for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
-        if x isa Layer && !isempty(build(x))
-            push!(trainable_layer, (layer.name, build(x)))
+        if x isa Layer
+            for (name, weights) in build(x)
+                push!(trainable_layer, (layer.name * "." * name, weights))
+            end
         end
     end
     return trainable_layer
@@ -139,10 +143,10 @@ end
 
 function Encoder(in_dim::Int, d_model::Int, num_heads::Int, dff::Int; dropout_rate = 0.1, name::String="encoder")
     mha = MultiHeadAttention(in_dim, d_model, num_heads, name="mha")
-    ffn = FFN(in_dim, d_model, dff, name="ffn")
+    ffn = FFN(d_model, d_model, dff, name="ffn")
 
-    layernorm1 = LayerNormalization(epsilon=1e-6, name="layer_norm1")
-    layernorm2 = LayerNormalization(epsilon=1e-6, name="layer_norm2")
+    layernorm1 = LayerNormalization(d_model, epsilon=1e-6, name="layer_norm1")
+    layernorm2 = LayerNormalization(d_model, epsilon=1e-6, name="layer_norm2")
 
     dropout1 = Dropout(dropout_rate, name="dropout1")
     dropout2 = Dropout(dropout_rate, name="dropout2")
@@ -154,13 +158,15 @@ function build(layer::Encoder)
     for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
         if x isa Layer
-            push!(trainable_layer, (layer.name, build(x)))
+            for (name, weights) in build(x)
+                push!(trainable_layer, (layer.name * "." * name, weights))
+            end
         end
     end
     return trainable_layer
 end
 
-function (layer::Encoder)(x::A{T, 3}, training=false, mask::Mask{T, 4}=nothing) where T <: AbstractFloat
+function (layer::Encoder)(x::A{T, 3}; training=false, mask::Mask{4}=nothing) where T <: AbstractFloat
     attn_output, attn_weights = layer.mha(x, x, x, training=training, mask=mask)  # (batch_size, input_seq_len, d_model)
     attn_output = layer.dropout1(attn_output, training=training)
     out1 = layer.ln1(x .+ attn_output, training=training)  # (batch_size, input_seq_len, d_model)
