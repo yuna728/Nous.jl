@@ -73,7 +73,7 @@ apply_attn_mask(logits::A{T, 4}, mask::Nothing) where T <: AbstractFloat = logit
 
 function apply_attn_mask(logits::A{T, 4}, mask::A{Bool, 4}) where T <: AbstractFloat
     neginf = typemin(eltype(logits))
-    return ifelse.(mask, logits, neginf)
+    return ifelse.(mask, neginf, logits)
 end
 
 function gpu(layer::MultiHeadAttention)

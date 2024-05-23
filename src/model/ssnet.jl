@@ -104,11 +104,11 @@ end
 function (model::SSNet)(x::A{T, 3}; training::Bool=false) where T <: AbstractFloat
     # x = (in_dim, input_len, batch_size)
     batch = size(x, 3)
-    const_0 = fill(T(0.), 1, 1, 1)
-    const_1 = fill(T(1.), 1, 1, 1)
+    const_0 = zeros(T, 1, 1, 1) |> dev(x)
+    const_1 = ones(T, 1, 1, 1) |> dev(x)
     mask = repeat(const_0, outer=[1, size(x, 2), batch]) # (1, input_len, batch_size)
     inp = cat(x, mask, dims=1) # (in_dim+1, input_len, batch_size)
-    inp_mask = collect(dropdims(sum(inp .== T(0.), dims=1) .== size(inp, 1); dims=1)) # (input_len, batch_size)
+    inp_mask = dropdims(sum(inp .== T(0.), dims=1) .== size(inp, 1); dims=1) |> dev(x) # (input_len, batch_size)
     comp_mask, enc_mask = create_masks(inp_mask, model.comp_layers[1].ca.num_areas)
 
     ### Conv Tower ###
@@ -128,6 +128,8 @@ function (model::SSNet)(x::A{T, 3}; training::Bool=false) where T <: AbstractFlo
 
     ## reshape for compress layer ##
     x = model.reshape_in_comp(x) # (batch_size, num_areas, len//num_areas, d_comp)
+
+    # x_before_comp
 
     ### Compress Length by Attention ###
     local_attn_ave = nothing
@@ -179,21 +181,21 @@ function create_masks(inp::M{Bool}, num_areas::Int)
     comp_mask = reshape(mask, div(seq_len, num_areas), 1, 1, num_areas, batch) # (seq_len/num_areas, 1, 1, num_areas, batch_size)
 
     # Create enc_mask
-    enc_mask = collect(dropdims(all(mask .!= 0, dims=1), dims=1))  # (num_areas, batch_size)
+    enc_mask = dropdims(all(mask .!= 0, dims=1), dims=1) |> dev(inp)# (num_areas, batch_size)
     enc_mask = reshape(enc_mask, num_areas, 1, 1, batch) # (num_areas, 1, 1, batch_size)
     
     return comp_mask, enc_mask
 end
 
-function gpu(model::SSNet)
+function gpu_model(model::SSNet)
   new_layer = []
-  for field in fieldnames(typeof(layer))
-      x = getfield(layer, field) 
+  for field in fieldnames(typeof(model))
+      x = getfield(model, field) 
       if x isa Layer
         push!(new_layer, gpu(x))
       elseif x isa Vector && eltype(x) <: Layer
         push!(new_layer, gpu.(x))
       end
   end
-  return SSNet(new_layer..., model.loss, model.ooptimizer, model.trainable)
+  return SSNet(new_layer..., model.loss_da, model.loss_ie, model.optimizer, model.trainable)
 end

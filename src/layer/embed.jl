@@ -58,7 +58,7 @@ end
 
 function gpu(layer::EmbedBlock)
   embed = layer.embed |> gpu
-  pos = CuArray(layer.pos)
+  pos = cu(layer.pos)
   ln = layer.ln |> gpu
   dropout = layer.dropout |> gpu
   return EmbedBlock(embed, layer.out_dim, pos, ln, dropout, layer.name)

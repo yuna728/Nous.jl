@@ -3,11 +3,13 @@ module Nous
 using LinearAlgebra, Statistics
 using Zygote
 using CUDA
+using NNlib
 using Random
+using Distributions
 
 include("type.jl")
 using .NType
-export Layer, Loss, Optimizer, Model, M, V, A
+export Layer, Loss, Optimizer, Model, M, V, A, dev
 
 include("initializer.jl")
 using .NInitializer
@@ -44,8 +46,8 @@ include("model/Model.jl")
 using .NModel
 export SequentialModel,
        MNISTModel,
-       SSNet,
-       set_loss_ie!, set_loss_da!, set_optimizer!
+       SSNet, create_masks,
+       set_loss_ie!, set_loss_da!, set_optimizer!, gpu_model
 
 include("train.jl")
 using .Train

@@ -14,7 +14,7 @@ function get_scaled_loss(opt::DynamicLossScale, loss::Float32)
 end
 
 function get_unscaled_gradients(opt::DynamicLossScale, scaled_grads)
-    return map(grad -> grad / scale, scaled_grads)
+    return map(grad -> grad / opt.scale, scaled_grads)
 end
 
 function optimizer_step!(opt::DynamicLossScale, trainable_list, grad)
@@ -30,7 +30,7 @@ function optimizer_step!(opt::DynamicLossScale, trainable_list, grad)
         end
     else
         opt.step_counter = 0
-        opt.dynamic_scale /= 2.0f0
+        opt.scale /= 2.0f0
     end
     return finite
 end

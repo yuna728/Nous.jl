@@ -42,7 +42,7 @@ function (model::SequentialModel)(x; training=false)
     return x
 end
 
-function gpu(model::SequentialModel)
+function gpu_model(model::SequentialModel)
     new_layer = []
     for layer in model.layers
         push!(new_layer, layer |> gpu)

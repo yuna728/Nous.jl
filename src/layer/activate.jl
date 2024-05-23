@@ -12,7 +12,7 @@ function build(act_func::ReLU)
 end
 
 function (act_func::ReLU)(x::A{T}; training=false) where T <: AbstractFloat
-    return ifelse.(x.<0, zeros(T, size(x)), x)
+    return ifelse.(x.<0, T(0.0), x)
 end
 
 function gpu(layer::ReLU)

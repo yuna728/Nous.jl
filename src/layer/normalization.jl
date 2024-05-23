@@ -28,10 +28,10 @@ function (layer::LayerNormalization)(x::A{T}; training=false) where T <: Abstrac
     if T == Float16
         x = Float32.(x)
     end
-    mean_x = mean(x, dims=1)
+    mean_x = mean(x, dims=1) # (1, size(A)[2:]...)
     var_x = var(x, dims=1)
-    inv = 1.0f0 ./ sqrt.(var_x .+ fill(layer.eps, size(var_x)))
-    inv = inv .* layer.gamma
+    inv = 1.0f0 ./ sqrt.(var_x .+ layer.eps)
+    inv = inv .* layer.gamma # (1, size(A)[2:]...) .* (in_dim, )
     res = -mean_x .* inv
     res = res .+ layer.beta
     x_norm = x .* inv .+ res
@@ -42,18 +42,20 @@ function gpu(layer::LayerNormalization)
     member_list = []
     for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
-        push!(member_list, CuArray(x))
+        if x isa V{Float32}
+            push!(member_list, cu(x))
+        end
     end
-    return LayerNormalization(member_list..., layer.name)
+    return LayerNormalization(member_list..., layer.eps, layer.name)
 end
 
 mutable struct BatchNormalization <: Layer
     beta::V{Float32}
     gamma::V{Float32}
-    momentum::Float32
-    eps::Float32
     moving_mean::V{Float32}
     moving_variance::V{Float32}
+    momentum::Float32
+    eps::Float32
     name::String
 end
 
@@ -62,7 +64,7 @@ function BatchNormalization(in_dim::Int; momentum=0.99f0, eps=1f-3, name::String
     gamma = ones(Float32, in_dim)
     moving_mean = zeros(Float32, in_dim)
     moving_variance = ones(Float32, in_dim)
-    return BatchNormalization(beta, gamma, Float32(momentum), Float32(eps), moving_mean, moving_variance, name)
+    return BatchNormalization(beta, gamma, moving_mean, moving_variance, Float32(momentum), Float32(eps), name)
 end
 
 function build(layer::BatchNormalization)
@@ -75,19 +77,19 @@ function (layer::BatchNormalization)(x::A{T}; training=false) where T <: Abstrac
     end
     if training
         reduction_axes = collect(2:ndims(x))
-        mean_x = mean(x, dims=reduction_axes) # (size(x, 1), 1, 1,...)
-        var_x = var(x, dims=reduction_axes)  # (size(x, 1), 1, 1,...)
-        layer.moving_mean = layer.moving_mean .* layer.momentum .+ mean .* (1.0f0 - layer.momentum)
-        layer.moving_variance = layer.moving_variance .* layer.momentum .+ variance .* (1.0f0 - layer.momentum)
+        mean_x = dropdims(mean(x, dims=reduction_axes), dims=Tuple(2:ndims(x))) # (size(x, 1))
+        var_x = dropdims(var(x, dims=reduction_axes), dims=Tuple(2:ndims(x)))  # (size(x, 1))
+        layer.moving_mean = layer.moving_mean .* layer.momentum .+ mean_x * (1.0f0 - layer.momentum) # (in_dim)
+        layer.moving_variance = layer.moving_variance .* layer.momentum .+ var_x * (1.0f0 - layer.momentum) # (in_dim)
     else
         mean_x = layer.moving_mean
         var_x = layer.moving_variance
     end
-    inv = 1.0f0 ./ sqrt.(var_x .+ fill(layer.eps, size(var_x)))
+    inv = 1.0f0 ./ sqrt.(var_x .+ layer.eps) #(in_dim)
     inv = inv .* layer.gamma
     res = -mean_x .* inv
     res = res .+ layer.beta
-    x_norm = x .* inv .+ res
+    x_norm = x .* inv .+ res # size(x)
     return T.(x_norm)
 end
 
@@ -95,8 +97,10 @@ function gpu(layer::BatchNormalization)
     member_list = []
     for field in fieldnames(typeof(layer))
         x = getfield(layer, field) 
-        push!(member_list, CuArray(x))
+        if x isa V{Float32}
+            push!(member_list, cu(x))
+        end
     end
-    return BatchNormalization(member_list..., layer.name)
+    return BatchNormalization(member_list..., layer.momentum, layer.eps, layer.name)
 end
 

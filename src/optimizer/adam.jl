@@ -15,8 +15,8 @@ end
 function optimizer_step!(opt::Adam, trainable_list, grad_list)
     if isempty(opt.momentum)
         for (name, weight) in trainable_list
-            opt.momentum[name] = zeros(Float32, size(weight))
-            opt.velocity[name] = zeros(Float32, size(weight))
+            opt.momentum[name] = zeros(Float32, size(weight)) |> dev(weight)
+            opt.velocity[name] = zeros(Float32, size(weight)) |> dev(weight)
         end
     end
     opt.iter += 1
@@ -29,6 +29,6 @@ function optimizer_step!(opt::Adam, trainable_list, grad_list)
         alpha = opt.lr * sqrt(1.0f0 - beta2_power) / (1.0f0 - beta1_power)
         opt.momentum[name] = momentum * opt.beta1 .+ grad_list[weight] * (1.0f0 - opt.beta1)
         opt.velocity[name] = velocity * opt.beta2 .+ grad_list[weight].^2 * (1.0f0 - opt.beta2)
-        trainable .-= (opt.momentum[name] * alpha) ./ (sqrt.(opt.velocity[name]) .+ opt.epsilon)
+        weight .-= (opt.momentum[name] * alpha) ./ (sqrt.(opt.velocity[name]) .+ opt.epsilon)
     end
 end

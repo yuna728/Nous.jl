@@ -32,7 +32,7 @@ function (layer::Dense)(x::A{T}; training=false) where T <: AbstractFloat
 end
 
 function gpu(layer::Dense)
-    weight = CuArray(layer.weight)
-    bias = CuArray(layer.bias)
-    return Dense(weight, bias, layer.name)
+    weight = cu(layer.weight)
+    bias = cu(layer.bias)
+    return Dense(weight, bias, layer.activation, layer.name)
 end

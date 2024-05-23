@@ -1,4 +1,5 @@
 using Nous
+using ProgressBars
 using CUDA
 
 function test_32()
@@ -10,7 +11,7 @@ function test_32()
     set_loss_ie!(model, loss_ie)
     set_optimizer!(model, optimizer)
 
-    @time for iter in 1:100
+    for i in ProgressBar(1:10)
         batch_x = randn(Float32, 4, 100000, 4)
         batch_y_da = randn(Float32, 4, 100000, 4)
         batch_y_ie = randn(Float32, 3, 100000, 4)
@@ -28,7 +29,7 @@ function test_16()
     optimizer_amp = DynamicLossScale(optimizer)
     set_optimizer!(model, optimizer_amp)
 
-    @time for iter in 1:100
+    for i in ProgressBar(1:10)
         batch_x = randn(Float32, 4, 100000, 4)
         batch_y_da = randn(Float32, 4, 100000, 4)
         batch_y_ie = randn(Float32, 3, 100000, 4)
@@ -45,13 +46,13 @@ function test_gpu32()
     set_loss_ie!(model, loss_ie)
     set_optimizer!(model, optimizer)
 
-    gpu_model = gpu(model)
+    model_gpu = gpu_model(model)
 
-    @time for iter in 1:100
-        batch_x = CuArray(randn(Float32, 4, 100000, 4))
-        batch_y_da = CuArray(randn(Float32, 4, 100000, 4))
-        batch_y_ie = CuArray(randn(Float32, 3, 100000, 4))
-        finite, loss = train_loop!(gpu_model, (batch_x, batch_y_da, batch_y_ie))
+    for i in ProgressBar(1:10)
+        batch_x = cu(randn(Float32, 4, 100000, 4))
+        batch_y_da = cu(randn(Float32, 4, 100000, 4))
+        batch_y_ie = cu(randn(Float32, 3, 100000, 4))
+        finite, loss = train_loop!(model_gpu, (batch_x, batch_y_da, batch_y_ie))
     end
 end
 
@@ -65,13 +66,13 @@ function test_gpu16()
     optimizer_amp = DynamicLossScale(optimizer)
     set_optimizer!(model, optimizer_amp)
 
-    gpu_model = gpu(model)
+    model_gpu = gpu_model(model)
 
-    @time for iter in 1:100
-        batch_x = CuArray(randn(Float32, 4, 100000, 4))
-        batch_y_da = CuArray(randn(Float32, 4, 100000, 4))
-        batch_y_ie = CuArray(randn(Float32, 3, 100000, 4))
-        finite, loss = train_loop!(gpu_model, (batch_x, batch_y_da, batch_y_ie), amp=true)
+    for i in ProgressBar(1:10)
+        batch_x = cu(randn(Float32, 4, 100000, 4))
+        batch_y_da = cu(randn(Float32, 4, 100000, 4))
+        batch_y_ie = cu(randn(Float32, 3, 100000, 4))
+        finite, loss = train_loop!(model_gpu, (batch_x, batch_y_da, batch_y_ie), amp=true)
     end
 end
 

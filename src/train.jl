@@ -27,14 +27,13 @@ function train_loop!(model::SSNet, train_batch; amp::Bool=false)
     (x, y_label_da, y_label_ie) = train_batch
     y_pred_da = nothing
     y_pred_ie = nothing
-    loss_da_val = nothing
-    loss_ie_val = nothing
+    loss_val = nothing
     if amp
         @assert typeof(model.optimizer) == DynamicLossScale
         x = Float16.(x)
     end
     grad = gradient(Params([weight for (name, weight) in model.trainable])) do
-        y_pred_da, y_pred_ie, _, _  = model(x)
+        y_pred_da, y_pred_ie, _, _  = model(x, training=true)
         y_pred_da = Float32.(y_pred_da)
         y_pred_ie = Float32.(y_pred_ie)
         loss_da_val = calc_loss(model.loss_da, y_label_da, y_pred_da)

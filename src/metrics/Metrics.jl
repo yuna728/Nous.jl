@@ -1,7 +1,6 @@
 module NMetrics
 
 using LinearAlgebra, Statistics
-using Flux: onecold
 
 export get_accuracy
 

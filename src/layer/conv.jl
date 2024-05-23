@@ -1,4 +1,5 @@
 using NNlib: conv
+using cuDNN
 
 mutable struct Conv1D{F} <: Layer
     weight::A{Float32, 3}
@@ -41,8 +42,8 @@ function (layer::Conv1D)(x::A{T, 3}; training=false) where T <: AbstractFloat
 end
 
 function gpu(layer::Conv1D)
-    weight = CuArray(layer.weight)
-    bias = CuArray(layer.bias)
+    weight = cu(layer.weight)
+    bias = cu(layer.bias)
     return Conv1D(weight, bias, layer.activation, layer.stride, layer.pad, layer.dilation, layer.name)
 end
 

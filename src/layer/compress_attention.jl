@@ -68,7 +68,7 @@ function gpu(layer::CompressAttention)
     k_w = layer.k_w |> gpu
     v_w = layer.v_w |> gpu
     out_w = layer.out_w |> gpu
-    E = CuArray(layer.E)
+    E = cu(layer.E)
     return CompressAttention(layer.num_areas, layer.num_heads, layer.depth, layer.max_len,
                              q_w, k_w, v_w, out_w, layer.dropout, E, layer.name)
 end
@@ -109,7 +109,7 @@ function batched_mul_qe(E::M{T}, q::A{T, 5}) where T <: AbstractFloat
 end
 
 function relative_shift(x::A{T, 5}) where T <: AbstractFloat # (2*l_q-1, l_q, num_heads, num_areas, batch_size) 
-    to_pad = zeros(T, size(x[1:1,:,:,:,:])) # (1, l_q, num_heads, num_areas, batch_size) 
+    to_pad = zeros(T, size(x[1:1,:,:,:,:])) |> dev(x) # (1, l_q, num_heads, num_areas, batch_size) 
     x = cat(to_pad, x, dims=1) # (2*l_q, l_q, num_heads, num_areas, batch_size) 
     t2, t1, num_heads, num_areas, batch_size = size(x)
     x = reshape(x, t1, t2, num_heads, num_areas, batch_size)  # (l_q, 2*l_q, num_heads, num_areas, batch_size) 
@@ -144,7 +144,7 @@ function apply_attn_mask(logits::A{T, 5}, mask::A{Bool, 5}) where T <: AbstractF
     #logits: (l_k, l_q, num_heads, num_areas, batch_size)
     # mask: (l_q, 1, 1, num_areas, batch_size)
     neginf = typemin(eltype(logits))
-    return ifelse.(mask, logits, neginf)
+    return ifelse.(mask, neginf, logits)
 end
 
 
